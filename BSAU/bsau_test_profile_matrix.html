@@ -1,0 +1,170 @@
+<style>
+.profile{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:12px}
+.profile.active{border:2px solid var(--color-border-info)}
+.ph{font-size:16px;font-weight:500;margin:0 0 4px}
+.ps{font-size:13px;color:var(--color-text-secondary);margin:0 0 12px}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:var(--border-radius-md);margin-right:6px;margin-bottom:4px}
+.tag-log{background:var(--color-background-info);color:var(--color-text-info)}
+.tag-csv{background:var(--color-background-success);color:var(--color-text-success)}
+.tag-off{background:var(--color-background-secondary);color:var(--color-text-tertiary)}
+.tag-cpcu{background:var(--color-background-warning);color:var(--color-text-warning)}
+.tag-nocpcu{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.tag-hw{background:var(--color-background-danger, var(--color-background-warning));color:var(--color-text-danger, var(--color-text-warning))}
+.step{font-size:13px;margin:4px 0;padding-left:16px;position:relative;color:var(--color-text-primary);line-height:1.5}
+.step::before{content:"";position:absolute;left:4px;top:7px;width:5px;height:5px;border-radius:50%;background:var(--color-text-tertiary)}
+.sect{font-size:14px;font-weight:500;margin:12px 0 6px;color:var(--color-text-primary)}
+.chk{font-size:13px;color:var(--color-text-secondary);line-height:1.6}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.mini{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 12px}
+.mini-label{font-size:11px;color:var(--color-text-tertiary);margin:0}
+.mini-val{font-size:15px;font-weight:500;margin:2px 0 0}
+.order{font-size:11px;color:var(--color-text-tertiary);margin:0 0 16px}
+</style>
+
+<div style="padding:0.5rem 0">
+
+<p class="order">Recommended order: test inside-out — software → SPI/radio → ADC pipeline → analog chain → full system</p>
+
+<div class="profile active">
+<p class="ph">1. TEST_PKT_LOG — WL codec verification</p>
+<p class="ps">Run first. Pure software test — no hardware dependencies beyond UART.</p>
+<span class="tag tag-log">LOG on</span>
+<span class="tag tag-off">CSV off</span>
+<span class="tag tag-nocpcu">CPCU not needed</span>
+<div class="sect">What runs</div>
+<div class="step">WL_Pack → WL_Unpack round-trip with 6 test vectors</div>
+<div class="step">Channel ramp, boundary (0x000/0xFFF), seq wrap</div>
+<div class="step">Alternating 0xAAA/0x555, 13-bit overflow, raw byte verify</div>
+<div class="step">Runs once at boot, then LED blinks idle</div>
+<div class="sect">Pass criteria</div>
+<div class="chk">All sub-tests show [PASS], summary shows 0 FAIL</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Terminal</p><p class="mini-val">115200 baud</p></div>
+<div class="mini"><p class="mini-label">Duration</p><p class="mini-val">~2 seconds</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">2. TEST_NRF_LOG — deep radio self-test</p>
+<p class="ps">Validates SPI chain, register config, power cycle, and RF state machine.</p>
+<span class="tag tag-log">LOG on</span>
+<span class="tag tag-off">CSV off</span>
+<span class="tag tag-hw">NRF module required</span>
+<span class="tag tag-nocpcu">CPCU optional</span>
+<div class="sect">What runs</div>
+<div class="step">200 ms POR delay → NRF_Init with retry</div>
+<div class="step">NRF_Test_All: SPI loopback, register audit, address, FIFO, power cycle, TX</div>
+<div class="step">Runtime: TX pings every 150 ms + health checks (every 20) + stress cycles (every 100)</div>
+<div class="step">Without CPCU: MAX_RT on every TX — still PASS (RF state machine ran)</div>
+<div class="step">With CPCU in RX mode: TX_DS = ACK received = live link confirmed</div>
+<div class="sect">Pass criteria</div>
+<div class="chk">NRF_Test_All: 6 PASS, 0 FAIL · Health/stress checks: all PASS</div>
+<div class="chk">TX pings: PASS (TX_DS or MAX_RT) · No TX_TIMEOUT</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Terminal</p><p class="mini-val">115200 baud</p></div>
+<div class="mini"><p class="mini-label">Duration</p><p class="mini-val">run ≥ 2 min</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">3. TEST_ADC_CSV — binary ADC stream</p>
+<p class="ps">Raw ADC pipeline validation via SerialPlot. Binary format — not human-readable.</p>
+<span class="tag tag-off">LOG off</span>
+<span class="tag tag-csv">CSV on</span>
+<span class="tag tag-nocpcu">CPCU not needed</span>
+<div class="sect">What runs</div>
+<div class="step">ADC + DMA pipeline: TIM6 → 7-ch scan → DMA circular → snapshot</div>
+<div class="step">Binary frame: [seq_lo][seq_hi][21 × uint16 LE] = 44 bytes per frame</div>
+<div class="step">LED toggles at DMA rate (~667 Hz)</div>
+<div class="sect">Pass criteria in SerialPlot</div>
+<div class="chk">Sync counter (ch 0): increments by 1, no gaps = no dropped frames</div>
+<div class="chk">ADC channels: ~2048 noise floor (floating) or injected signal waveform</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Tool</p><p class="mini-val">SerialPlot</p></div>
+<div class="mini"><p class="mini-label">Channels</p><p class="mini-val">22, uint16 LE</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">4. TEST_CSV — ASCII ADC capture</p>
+<p class="ps">Human-readable ADC pipeline test. Same data as ADC_CSV, easier to inspect.</p>
+<span class="tag tag-off">LOG off</span>
+<span class="tag tag-csv">CSV on</span>
+<span class="tag tag-nocpcu">CPCU not needed</span>
+<div class="sect">What runs</div>
+<div class="step">Same ADC/DMA pipeline as ADC_CSV</div>
+<div class="step">CSV line: seq, 3×6 EMG channels, averaged battery, drop counter</div>
+<div class="step">Header line emitted at boot for column identification</div>
+<div class="sect">Pass criteria</div>
+<div class="chk">seq increments without gaps · batt stable (~1860 at 3.0V)</div>
+<div class="chk">drop column stays at 0 (no DMA overruns)</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Tool</p><p class="mini-val">terminal or SerialPlot ASCII</p></div>
+<div class="mini"><p class="mini-label">Columns</p><p class="mini-val">seq + 18 EMG + batt + drop</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">5. TEST_DFT_LOG — analog frequency response</p>
+<p class="ps">Goertzel filter bank on live ADC. Requires a known-frequency signal source.</p>
+<span class="tag tag-log">LOG on</span>
+<span class="tag tag-off">CSV off</span>
+<span class="tag tag-hw">Signal gen required</span>
+<span class="tag tag-nocpcu">CPCU not needed</span>
+<div class="sect">What runs</div>
+<div class="step">ADC channel 0 fed into 5-bin Goertzel (50/100/200/350/500 Hz)</div>
+<div class="step">Block size 512 samples, fs = 2000 Hz → report every ~256 ms</div>
+<div class="step">Logs per-bin magnitude, dominant frequency, concentration ratio</div>
+<div class="sect">Pass criteria</div>
+<div class="chk">Input frequency bin dominates · Concentration > 90% for clean sine</div>
+<div class="chk">1 kHz input: all bins low (anti-alias LPF working)</div>
+<div class="chk">No input: no dominant bin, low magnitudes (noise floor)</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Input</p><p class="mini-val">sine on PA0</p></div>
+<div class="mini"><p class="mini-label">Verify</p><p class="mini-val">50, 100, 500 Hz</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">6. DEBUG — full production path</p>
+<p class="ps">Complete acquisition + compression + radio TX with live diagnostics.</p>
+<span class="tag tag-log">LOG on</span>
+<span class="tag tag-csv">CSV on</span>
+<span class="tag tag-hw">NRF module required</span>
+<span class="tag tag-cpcu">CPCU recommended</span>
+<div class="sect">What runs</div>
+<div class="step">Full pipeline: ADC → DMA → WL_Pack → NRF_Transmit</div>
+<div class="step">LOG: periodic stats (seq, batt, flag, ok/lost/drop) every 329 pkts</div>
+<div class="step">LOG_CSV: decimated sample line (6 ch + batt) every 67 pkts (~10 Hz)</div>
+<div class="step">Without CPCU: every TX gets MAX_RT (~40 pkt/s effective, lost = ok)</div>
+<div class="step">With CPCU: full throughput ~667 pkt/s, lost ≈ 0</div>
+<div class="sect">Pass criteria</div>
+<div class="chk">With CPCU: lost=0, drop=0, batt stable, flag=OK</div>
+<div class="chk">Without CPCU: drop=0, batt stable (lost = ok is expected)</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Terminal</p><p class="mini-val">LOG + CSV mixed</p></div>
+<div class="mini"><p class="mini-label">EMG</p><p class="mini-val">optional (floating OK)</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">7. RELEASE — production firmware</p>
+<p class="ps">Zero debug output. Final deployment build.</p>
+<span class="tag tag-off">LOG off</span>
+<span class="tag tag-off">CSV off</span>
+<span class="tag tag-hw">NRF module required</span>
+<span class="tag tag-cpcu">CPCU required</span>
+<div class="sect">What to validate</div>
+<div class="step">Terminal: absolutely silent (no output = correct)</div>
+<div class="step">SWD: pkt_count incrementing, lost_count = 0</div>
+<div class="step">Current: ~116 µA average (µA meter on VDD)</div>
+<div class="step">LED: off (no test-mode toggling)</div>
+<div class="sect">Automated checks not possible</div>
+<div class="chk">Manual: verify CPCU receives packets (check CPCU terminal for CM4_RealPkt)</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Flash size</p><p class="mini-val">smallest</p></div>
+<div class="mini"><p class="mini-label">Sleep current</p><p class="mini-val">~116 µA</p></div>
+</div>
+</div>
+
+</div>

@@ -1,0 +1,102 @@
+<style>
+.profile{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:12px}
+.profile.active{border:2px solid var(--color-border-info)}
+.ph{font-size:16px;font-weight:500;margin:0 0 4px}
+.ps{font-size:13px;color:var(--color-text-secondary);margin:0 0 12px}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:var(--border-radius-md);margin-right:6px;margin-bottom:4px}
+.tag-log{background:var(--color-background-info);color:var(--color-text-info)}
+.tag-csv{background:var(--color-background-success);color:var(--color-text-success)}
+.tag-off{background:var(--color-background-secondary);color:var(--color-text-tertiary)}
+.tag-bsau{background:var(--color-background-warning);color:var(--color-text-warning)}
+.tag-nobsau{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.detail{font-size:13px;color:var(--color-text-secondary);line-height:1.6;margin:8px 0 0}
+.step{font-size:13px;margin:4px 0;padding-left:16px;position:relative;color:var(--color-text-primary);line-height:1.5}
+.step::before{content:"";position:absolute;left:4px;top:7px;width:5px;height:5px;border-radius:50%;background:var(--color-text-tertiary)}
+.sect{font-size:14px;font-weight:500;margin:12px 0 6px;color:var(--color-text-primary)}
+.chk{font-size:13px;color:var(--color-text-secondary);line-height:1.6}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.mini{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 12px}
+.mini-label{font-size:11px;color:var(--color-text-tertiary);margin:0}
+.mini-val{font-size:15px;font-weight:500;margin:2px 0 0}
+</style>
+
+<div style="padding:0.5rem 0">
+
+<div class="profile active">
+<p class="ph">1. TEST_LOG — software validation</p>
+<p class="ps">Run first. Validates all software layers.</p>
+<span class="tag tag-log">LOG on</span>
+<span class="tag tag-off">CSV off</span>
+<span class="tag tag-nobsau">BSAU optional</span>
+<div class="sect">What runs</div>
+<div class="step">CM7: WL codec tests (4) + IPC tests (6) + monitor</div>
+<div class="step">CM4: NRF_Test_All (6 tests) + hybrid loop</div>
+<div class="step">Without BSAU: synthetic packets after 500 ms</div>
+<div class="step">With BSAU: real packets shown as CM4_RealPkt</div>
+<div class="sect">Pass criteria</div>
+<div class="chk">All [PASS], radio=OK, state=1, no [FAIL] lines</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Terminal</p><p class="mini-val">115200 baud</p></div>
+<div class="mini"><p class="mini-label">Duration</p><p class="mini-val">~30 seconds</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">2. TEST_CSV — SerialPlot capture</p>
+<p class="ps">Visual waveform validation. Requires BSAU for real data.</p>
+<span class="tag tag-off">LOG off</span>
+<span class="tag tag-csv">CSV on</span>
+<span class="tag tag-bsau">BSAU recommended</span>
+<div class="sect">What runs</div>
+<div class="step">CM7: CSV monitor only (100 lines then idle)</div>
+<div class="step">CM4: NRF init + hybrid loop (no LOG noise)</div>
+<div class="step">Clean CSV stream — no LOG interleaving</div>
+<div class="sect">Pass criteria in SerialPlot</div>
+<div class="chk">Ch 2-7: live EMG waveforms (or sawtooth if synth)</div>
+<div class="chk">Ch 8 (ring): near 0 · Ch 9 (ovf): flat · Ch 11 (state): steady 1</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Tool</p><p class="mini-val">SerialPlot</p></div>
+<div class="mini"><p class="mini-label">Channels</p><p class="mini-val">12, comma, ASCII</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">3. DEBUG — development integration</p>
+<p class="ps">Full data path with servos. Closest to production behavior.</p>
+<span class="tag tag-log">LOG on</span>
+<span class="tag tag-csv">CSV on</span>
+<span class="tag tag-bsau">BSAU required</span>
+<div class="sect">What runs</div>
+<div class="step">CM7: threshold classifier + motor command generation</div>
+<div class="step">CM4: normal reflex loop — NRF RX + servo PWM</div>
+<div class="step">Both LOG (events) and LOG_CSV (classifier data) active</div>
+<div class="sect">Pass criteria</div>
+<div class="chk">zone=0 at rest, zone 1-3 on flex, servos move physically</div>
+<div class="chk">No SafetyClamp warnings, link quality lq > 80</div>
+<div class="chk">Motor cmds: servo values between per-joint min/max</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Servos</p><p class="mini-val">connect 6ch</p></div>
+<div class="mini"><p class="mini-label">EMG</p><p class="mini-val">electrodes on</p></div>
+</div>
+</div>
+
+<div class="profile">
+<p class="ph">4. RELEASE — production validation</p>
+<p class="ps">Zero debug output. Final acceptance test.</p>
+<span class="tag tag-off">LOG off</span>
+<span class="tag tag-off">CSV off</span>
+<span class="tag tag-bsau">BSAU required</span>
+<div class="sect">What to validate</div>
+<div class="step">Serial terminal: absolutely silent (no output = correct)</div>
+<div class="step">Servos respond to muscle activity (functional test)</div>
+<div class="step">E-STOP (PC13 button): all servos snap to 1500 µs</div>
+<div class="step">Power cycle recovery: system returns to RUNNING</div>
+<div class="sect">Automated checks not possible</div>
+<div class="chk">Manual observation only — use oscilloscope on TIM1/TIM8 for PWM verification</div>
+<div class="grid2">
+<div class="mini"><p class="mini-label">Flash size</p><p class="mini-val">smallest</p></div>
+<div class="mini"><p class="mini-label">CPU overhead</p><p class="mini-val">zero debug</p></div>
+</div>
+</div>
+
+</div>
