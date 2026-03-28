@@ -1,0 +1,21 @@
+# Build artifacts and compiled files
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.su
+*.d
+
+# Build directories (Standard for CMake/Make/STM32Cube)
+build/
+Debug/
+Release/
+
+# OS and Editor generated files
+.cache/
+.vscode/
+*.swp
+*~
+.directory
